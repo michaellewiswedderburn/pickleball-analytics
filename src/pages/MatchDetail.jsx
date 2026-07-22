@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useMemo, useState, useEffect } from 'react'
 import {
   Chart as ChartJS,
@@ -7,7 +7,7 @@ import {
 } from 'chart.js'
 import { Bar, Doughnut, Line } from 'react-chartjs-2'
 
-import { getMatch } from '../utils/storage'
+import { getMatch, deleteMatch } from '../utils/storage'
 import { playerStats, thirdShotStats, rallyStats, computeMetrics } from '../utils/analytics'
 import CourtPlot from '../components/CourtPlot'
 import MetricsTab, { MetricsUploader } from '../components/MetricsTab'
@@ -29,8 +29,10 @@ const chartDefaults = {
 
 export default function MatchDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [match, setMatch] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState('Court')
 
   useEffect(() => {
@@ -42,6 +44,21 @@ export default function MatchDetail() {
 
   function handleMetricsAttached(data) {
     setMatch((m) => ({ ...m, metrics: data }))
+  }
+
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      `Delete "${match.label}"?\n\nThis will permanently remove the match and all ${match.shot_count} shots from the database. This cannot be undone.`
+    )
+    if (!confirmed) return
+    setDeleting(true)
+    try {
+      await deleteMatch(id)
+      navigate('/')
+    } catch (err) {
+      alert('Failed to delete: ' + err.message)
+      setDeleting(false)
+    }
   }
 
   if (loading) {
@@ -79,12 +96,19 @@ export default function MatchDetail() {
         <Link to="/" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">← Matches</Link>
         <h1 className="text-lg font-semibold text-gray-100">{match.label}</h1>
         <div className="ml-auto flex items-center gap-3">
-          <span className="text-gray-500 text-sm">{match.shot_count} shots · {match.players?.join(' vs ')}</span>
+          <span className="text-gray-500 text-sm hidden sm:block">{match.shot_count} shots · {match.players?.join(' vs ')}</span>
           {match.metrics && (
             <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-950 px-2 py-1 rounded-lg">
               ✓ Custom metrics
             </span>
           )}
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-sm text-red-400 hover:text-red-300 border border-red-900 hover:border-red-700 bg-red-950/40 hover:bg-red-950/70 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {deleting ? 'Deleting…' : 'Delete match'}
+          </button>
         </div>
       </header>
 
