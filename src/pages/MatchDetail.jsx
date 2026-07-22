@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, BarElement, LineElement,
@@ -29,11 +29,27 @@ const chartDefaults = {
 
 export default function MatchDetail() {
   const { id } = useParams()
-  const [match, setMatch] = useState(() => getMatch(id))
+  const [match, setMatch] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('Court')
+
+  useEffect(() => {
+    getMatch(id)
+      .then(setMatch)
+      .catch(() => setMatch(null))
+      .finally(() => setLoading(false))
+  }, [id])
 
   function handleMetricsAttached(data) {
     setMatch((m) => ({ ...m, metrics: data }))
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-500 animate-pulse">
+        Loading match…
+      </div>
+    )
   }
 
   if (!match) {
@@ -63,7 +79,7 @@ export default function MatchDetail() {
         <Link to="/" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">← Matches</Link>
         <h1 className="text-lg font-semibold text-gray-100">{match.label}</h1>
         <div className="ml-auto flex items-center gap-3">
-          <span className="text-gray-500 text-sm">{match.shotCount} shots · {match.players?.join(' vs ')}</span>
+          <span className="text-gray-500 text-sm">{match.shot_count} shots · {match.players?.join(' vs ')}</span>
           {match.metrics && (
             <span className="text-xs text-emerald-400 border border-emerald-800 bg-emerald-950 px-2 py-1 rounded-lg">
               ✓ Custom metrics

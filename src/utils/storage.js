@@ -1,35 +1,113 @@
-const MATCHES_KEY = 'pb_matches'
+import { supabase } from './supabase'
 
-export function getMatches() {
-  try {
-    return JSON.parse(localStorage.getItem(MATCHES_KEY) ?? '[]')
-  } catch {
-    return []
+export async function getMatches() {
+  const { data, error } = await supabase
+    .from('matches')
+    .select('id, label, uploaded_at, shot_count, players, metrics')
+    .order('uploaded_at', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getMatch(id) {
+  const { data: match, error: mErr } = await supabase
+    .from('matches')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (mErr) throw mErr
+
+  const { data: shots, error: sErr } = await supabase
+    .from('shots')
+    .select('*')
+    .eq('match_id', id)
+    .order('point', { ascending: true })
+  if (sErr) throw sErr
+
+  return {
+    ...match,
+    shots: shots.map(normalizeShot),
   }
 }
 
-export function getMatch(id) {
-  return getMatches().find((m) => m.id === id) ?? null
+export async function saveMatch(match) {
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: row, error: mErr } = await supabase
+    .from('matches')
+    .insert({
+      id: match.id,
+      user_id: user.id,
+      label: match.label,
+      uploaded_at: match.uploadedAt,
+      shot_count: match.shotCount,
+      players: match.players,
+      metrics: match.metrics ?? null,
+    })
+    .select()
+    .single()
+  if (mErr) throw mErr
+
+  const shotRows = match.shots.map((s) => ({
+    match_id: row.id,
+    point: s.point,
+    game: s.game,
+    set_num: s.set,
+    shot: s.shot,
+    type: s.type,
+    player: s.player,
+    stroke: s.stroke,
+    result: s.result,
+    direction: s.direction,
+    spin: s.spin,
+    speed_mph: s.speedMph,
+    hit_x: s.hit?.x ?? null,
+    hit_y: s.hit?.y ?? null,
+    hit_z: s.hit?.z ?? null,
+    bounce_x: s.bounce?.x ?? null,
+    bounce_y: s.bounce?.y ?? null,
+    bounce_zone: s.bounceZone,
+    bounce_side: s.bounceSide,
+    hit_zone: s.hitZone,
+  }))
+
+  const { error: sErr } = await supabase.from('shots').insert(shotRows)
+  if (sErr) throw sErr
+
+  return row
 }
 
-export function saveMatch(match) {
-  const matches = getMatches()
-  const idx = matches.findIndex((m) => m.id === match.id)
-  if (idx >= 0) {
-    matches[idx] = match
-  } else {
-    matches.push(match)
+export async function deleteMatch(id) {
+  const { error } = await supabase.from('matches').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function attachMetrics(id, metricsData) {
+  const { error } = await supabase
+    .from('matches')
+    .update({ metrics: metricsData })
+    .eq('id', id)
+  if (error) throw error
+}
+
+// Map DB row back to the shape the rest of the app expects
+function normalizeShot(s) {
+  return {
+    point: s.point,
+    game: s.game,
+    set: s.set_num,
+    shot: s.shot,
+    type: s.type ?? '',
+    player: s.player ?? '',
+    stroke: s.stroke ?? '',
+    result: s.result ?? '',
+    direction: s.direction ?? '',
+    spin: s.spin ?? '',
+    speedMph: s.speed_mph,
+    hit: { x: s.hit_x, y: s.hit_y, z: s.hit_z },
+    bounce: { x: s.bounce_x, y: s.bounce_y },
+    bounceZone: s.bounce_zone ?? '',
+    bounceSide: s.bounce_side ?? '',
+    hitZone: s.hit_zone ?? '',
   }
-  localStorage.setItem(MATCHES_KEY, JSON.stringify(matches))
-}
-
-export function deleteMatch(id) {
-  const matches = getMatches().filter((m) => m.id !== id)
-  localStorage.setItem(MATCHES_KEY, JSON.stringify(matches))
-}
-
-export function attachMetrics(id, metricsData) {
-  const match = getMatch(id)
-  if (!match) return
-  saveMatch({ ...match, metrics: metricsData })
 }

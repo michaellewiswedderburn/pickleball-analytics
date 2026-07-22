@@ -2,15 +2,18 @@ import { Link } from 'react-router-dom'
 import { deleteMatch } from '../utils/storage'
 
 export default function MatchCard({ match, onDeleted }) {
-  const date = new Date(match.uploadedAt).toLocaleDateString(undefined, {
+  const date = new Date(match.uploaded_at).toLocaleDateString(undefined, {
     year: 'numeric', month: 'short', day: 'numeric',
   })
 
-  function handleDelete(e) {
+  async function handleDelete(e) {
     e.preventDefault()
-    if (confirm(`Delete "${match.label}"?`)) {
-      deleteMatch(match.id)
+    if (!confirm(`Delete "${match.label}"?`)) return
+    try {
+      await deleteMatch(match.id)
       onDeleted?.()
+    } catch (err) {
+      alert('Failed to delete: ' + err.message)
     }
   }
 
@@ -34,7 +37,7 @@ export default function MatchCard({ match, onDeleted }) {
         </button>
       </div>
       <div className="mt-3 flex gap-4 text-sm text-gray-400">
-        <span><span className="text-gray-200">{match.shotCount}</span> shots</span>
+        <span><span className="text-gray-200">{match.shot_count}</span> shots</span>
         <span><span className="text-gray-200">{match.players?.join(' vs ') || '—'}</span></span>
       </div>
     </Link>
