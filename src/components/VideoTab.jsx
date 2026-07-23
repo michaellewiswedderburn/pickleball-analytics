@@ -254,6 +254,35 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
                         </option>
                       ))}
                     </select>
+                    {/* Frame-by-frame controls */}
+                    <div className="space-y-1">
+                      <p className="text-gray-600 text-xs">Frame step (1/30s)</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            const v = videoRef.current
+                            if (!v) return
+                            v.pause()
+                            v.currentTime = Math.max(0, v.currentTime - 1 / 30)
+                          }}
+                          className="flex-1 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm transition-colors"
+                        >
+                          ◀ Prev frame
+                        </button>
+                        <button
+                          onClick={() => {
+                            const v = videoRef.current
+                            if (!v) return
+                            v.pause()
+                            v.currentTime = v.currentTime + 1 / 30
+                          }}
+                          className="flex-1 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm transition-colors"
+                        >
+                          Next frame ▶
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="flex gap-2">
                       <button
                         onClick={handleMarkSync}
