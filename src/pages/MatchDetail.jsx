@@ -212,6 +212,25 @@ function MiniBar({ title, data, colors }) {
 
 // ── Tab: Third Shot ───────────────────────────────────────────────
 
+function PlayerDropdown({ players }) {
+  const [selected, setSelected] = useState(players[0]?.player ?? '')
+  const data = players.find((p) => p.player === selected)
+  return (
+    <div className="space-y-4">
+      <select
+        value={selected}
+        onChange={(e) => setSelected(e.target.value)}
+        className="bg-gray-800 text-gray-200 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+      >
+        {players.map((p) => (
+          <option key={p.player} value={p.player}>{p.player}</option>
+        ))}
+      </select>
+      {data && <ThirdShotSummaryPanel s={data} />}
+    </div>
+  )
+}
+
 function ThirdShotSummaryPanel({ s }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -267,14 +286,7 @@ function ThirdShotTab({ stats }) {
       {view === 'overall' ? (
         <ThirdShotSummaryPanel s={stats} />
       ) : (
-        <div className="space-y-6">
-          {stats.byPlayer.map((p) => (
-            <div key={p.player}>
-              <h3 className="text-gray-300 font-semibold mb-3">{p.player}</h3>
-              <ThirdShotSummaryPanel s={p} />
-            </div>
-          ))}
-        </div>
+        <PlayerDropdown players={stats.byPlayer} />
       )}
     </div>
   )
