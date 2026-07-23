@@ -92,8 +92,14 @@ export async function attachMetrics(id, metricsData) {
 }
 
 // Map DB row back to the shape the rest of the app expects
+export async function deleteShot(shotId) {
+  const { error } = await supabase.from('shots').delete().eq('id', shotId)
+  if (error) throw error
+}
+
 function normalizeShot(s) {
   return {
+    id: s.id,
     point: s.point,
     game: s.game,
     set: s.set_num,

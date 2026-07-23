@@ -122,7 +122,14 @@ export default function MatchDetail() {
             </details>
           </div>
         )}
-        {tab === 'Video' && <VideoTab shots={match.shots} />}
+        {tab === 'Video' && (
+          <VideoTab
+            shots={match.shots}
+            onShotDeleted={(shotId) =>
+              setMatch((m) => ({ ...m, shots: m.shots.filter((s) => s.id !== shotId) }))
+            }
+          />
+        )}
       </main>
     </div>
   )
