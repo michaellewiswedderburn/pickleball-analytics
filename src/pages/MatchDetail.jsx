@@ -40,6 +40,14 @@ export default function MatchDetail() {
       .finally(() => setLoading(false))
   }, [id])
 
+  const pStats = useMemo(() => playerStats(match?.shots ?? []), [match?.shots])
+  const tStats = useMemo(() => thirdShotStats(match?.shots ?? []), [match?.shots])
+  const rStats = useMemo(() => rallyStats(match?.shots ?? []), [match?.shots])
+  const metrics = useMemo(
+    () => match ? (match.metrics ?? computeMetrics(match.shots)) : null,
+    [match],
+  )
+
   function handleMetricsAttached(data) {
     setMatch((m) => ({ ...m, metrics: data }))
   }
@@ -62,15 +70,6 @@ export default function MatchDetail() {
       </div>
     )
   }
-
-  const pStats = useMemo(() => playerStats(match.shots), [match.shots])
-  const tStats = useMemo(() => thirdShotStats(match.shots), [match.shots])
-  const rStats = useMemo(() => rallyStats(match.shots), [match.shots])
-  // Use uploaded JSON metrics if present, otherwise compute from shots
-  const metrics = useMemo(
-    () => match.metrics ?? computeMetrics(match.shots),
-    [match.metrics, match.shots],
-  )
 
   return (
     <div className="min-h-screen bg-gray-950">
