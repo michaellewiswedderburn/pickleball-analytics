@@ -223,28 +223,37 @@ export function computeMetrics(shots) {
       ? (ps.filter((s) => ATTACK_STROKES.has(s.stroke)).length / ps.length) * 100
       : 0
 
-    // Shot quality per stroke (weighted average of per-shot scores)
+    // Shot quality per stroke with Bayesian shrinkage.
+    // Low-sample strokes are pulled toward PRIOR_MEAN; high-sample strokes are unaffected.
+    const PRIOR_MEAN = 6.5   // neutral prior across all shot types
+    const PRIOR_WEIGHT = 5   // equivalent to 5 virtual shots at the prior
     const byStroke = {}
     const strokeGroups = groupBy(ps.filter((s) => s.stroke), 'stroke')
     Object.entries(strokeGroups).forEach(([stroke, ss]) => {
       const scores = ss.map((s) =>
         shotQualityScore(s, winnerKeys.has(`${s.point}-${s.shot}`), errorKeys.has(`${s.point}-${s.shot}`))
       )
-      byStroke[stroke] = avg(scores)
+      const n = scores.length
+      const rawAvg = avg(scores)
+      byStroke[stroke] = (n * rawAvg + PRIOR_WEIGHT * PRIOR_MEAN) / (n + PRIOR_WEIGHT)
     })
 
-    // Serve (shot 1) and Return (shot 2) as position-based categories
+    // Serve (shot 1) and Return (shot 2) as position-based categories, also shrunk
     const serveShots = ps.filter((s) => s.shot === 1)
     const returnShots = ps.filter((s) => s.shot === 2)
     if (serveShots.length) {
-      byStroke['Serve'] = avg(serveShots.map((s) =>
+      const scores = serveShots.map((s) =>
         shotQualityScore(s, winnerKeys.has(`${s.point}-${s.shot}`), errorKeys.has(`${s.point}-${s.shot}`))
-      ))
+      )
+      const n = scores.length
+      byStroke['Serve'] = (n * avg(scores) + PRIOR_WEIGHT * PRIOR_MEAN) / (n + PRIOR_WEIGHT)
     }
     if (returnShots.length) {
-      byStroke['Return'] = avg(returnShots.map((s) =>
+      const scores = returnShots.map((s) =>
         shotQualityScore(s, winnerKeys.has(`${s.point}-${s.shot}`), errorKeys.has(`${s.point}-${s.shot}`))
-      ))
+      )
+      const n = scores.length
+      byStroke['Return'] = (n * avg(scores) + PRIOR_WEIGHT * PRIOR_MEAN) / (n + PRIOR_WEIGHT)
     }
 
     // Overall shot quality = weighted avg across all strokes by shot count
