@@ -179,9 +179,9 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, onShotDel
                   className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
                 >
                   <option value="">Select a rally…</option>
-                  {points.map((p) => (
+                  {points.map((p, i) => (
                     <option key={p} value={p}>
-                      Rally {p} — {timedShots.filter((s) => s.point === p).length} shots
+                      Rally {i + 1} — {timedShots.filter((s) => s.point === p).length} shots
                     </option>
                   ))}
                 </select>
@@ -209,7 +209,9 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, onShotDel
               {selectedShots.length > 0 && (
                 <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2">
                   <p className="text-gray-400 text-xs font-medium uppercase tracking-wide mb-3">
-                    {mode === 'rally' ? `Rally ${selectedPoint} — ${selectedShots.length} shots` : 'Shot detail'}
+                    {mode === 'rally'
+                      ? `Rally ${points.indexOf(Number(selectedPoint)) + 1} — ${selectedShots.length} shots`
+                      : 'Shot detail'}
                   </p>
                   {selectedShots.map((s) => (
                     <ShotRow
