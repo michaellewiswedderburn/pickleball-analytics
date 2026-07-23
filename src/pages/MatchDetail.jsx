@@ -124,9 +124,14 @@ export default function MatchDetail() {
         )}
         {tab === 'Video' && (
           <VideoTab
+            matchId={id}
+            videoUrl={match.video_url ?? null}
             shots={match.shots}
             onShotDeleted={(shotId) =>
               setMatch((m) => ({ ...m, shots: m.shots.filter((s) => s.id !== shotId) }))
+            }
+            onVideoSaved={(url) =>
+              setMatch((m) => ({ ...m, video_url: url }))
             }
           />
         )}

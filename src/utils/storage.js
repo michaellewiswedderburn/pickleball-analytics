@@ -83,6 +83,14 @@ export async function deleteMatch(id) {
   if (error) throw error
 }
 
+export async function saveVideoUrl(id, videoUrl) {
+  const { error } = await supabase
+    .from('matches')
+    .update({ video_url: videoUrl })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function attachMetrics(id, metricsData) {
   const { error } = await supabase
     .from('matches')

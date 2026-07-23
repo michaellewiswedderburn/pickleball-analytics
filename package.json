@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1093.0",
+    "@aws-sdk/s3-request-presigner": "^3.1093.0",
     "@supabase/supabase-js": "^2.110.8",
     "chart.js": "^4.4.4",
     "papaparse": "^5.4.1",
