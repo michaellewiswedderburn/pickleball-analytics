@@ -150,7 +150,8 @@ function shotQualityScore(shot, isWinner, isError) {
   const isDropOrDink = /drop|dink/i.test(shot.stroke)
   const isServe = shot.shot === 1
 
-  let score = 5.0
+  // Drops/dinks start at 5 (placement-driven); all other shots start at 7
+  let score = isDropOrDink ? 5.0 : 7.0
 
   // Speed: drops/dinks are naturally slow — don't penalise them.
   // Other shots: small penalty for slow, moderate bonus for fast.
