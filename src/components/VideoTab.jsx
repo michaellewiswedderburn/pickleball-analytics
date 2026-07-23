@@ -76,6 +76,15 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
   }
 
   const timedShots = shots.filter((s) => s.videoTime != null)
+
+  // Group into rallies by serve (shot === 1 starts a new rally)
+  const rallies = timedShots.reduce((acc, shot) => {
+    if (shot.shot === 1 || acc.length === 0) acc.push([])
+    acc[acc.length - 1].push(shot)
+    return acc
+  }, [])
+
+  // Keep points array for sync dropdown (all timed shots)
   const points = [...new Set(timedShots.map((s) => s.point))].sort((a, b) => a - b)
 
   async function handleVideoFile(file) {
@@ -141,9 +150,9 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
   function handlePointSelect(val) {
     setSelectedPoint(val)
     setSelectedShotKey('')
-    if (!val) return
-    const rallyShots = timedShots.filter((s) => s.point === Number(val))
-    if (!rallyShots.length) return
+    if (val === '') return
+    const rallyShots = rallies[Number(val)]
+    if (!rallyShots?.length) return
     const { pre, post } = getBuf(val)
     seekAndPlay(rallyShots[0].videoTime - pre, rallyShots[rallyShots.length - 1].videoTime + post)
   }
@@ -154,14 +163,14 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
     const [point, shot] = val.split('-').map(Number)
     const s = timedShots.find((s) => s.point === point && s.shot === shot)
     if (s) {
-      const { pre, post } = getBuf(String(s.point))
+      const { pre, post } = getBuf(selectedPoint)
       seekAndPlay(s.videoTime - pre, s.videoTime + post)
     }
   }
 
   const selectedShots = (() => {
-    if (mode === 'rally' && selectedPoint)
-      return timedShots.filter((s) => s.point === Number(selectedPoint))
+    if (mode === 'rally' && selectedPoint !== '')
+      return rallies[Number(selectedPoint)] ?? []
     if (mode === 'shot' && selectedShotKey) {
       const [point, shot] = selectedShotKey.split('-').map(Number)
       return timedShots.filter((s) => s.point === point && s.shot === shot)
@@ -329,9 +338,9 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
                   className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
                 >
                   <option value="">Select a rally…</option>
-                  {points.map((p, i) => (
-                    <option key={p} value={p}>
-                      Rally {i + 1} — {timedShots.filter((s) => s.point === p).length} shots
+                  {rallies.map((rallyShots, i) => (
+                    <option key={i} value={i}>
+                      Rally {i + 1} — {rallyShots.length} shots
                     </option>
                   ))}
                 </select>
@@ -353,7 +362,7 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">
-                    {selectedPoint ? `Rally ${points.indexOf(Number(selectedPoint)) + 1} clip buffers` : 'Clip buffers'}
+                    {selectedPoint !== '' ? `Rally ${Number(selectedPoint) + 1} clip buffers` : 'Clip buffers'}
                   </p>
                   {selectedPoint && (
                     <span className="text-gray-600 text-xs">
@@ -388,7 +397,7 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
                 <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2">
                   <p className="text-gray-400 text-xs font-medium uppercase tracking-wide mb-3">
                     {mode === 'rally'
-                      ? `Rally ${points.indexOf(Number(selectedPoint)) + 1} — ${selectedShots.length} shots`
+                      ? `Rally ${Number(selectedPoint) + 1} — ${selectedShots.length} shots`
                       : 'Shot detail'}
                   </p>
                   {selectedShots.map((s) => (
