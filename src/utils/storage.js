@@ -83,6 +83,14 @@ export async function deleteMatch(id) {
   if (error) throw error
 }
 
+export async function saveRallyBuffers(id, rallyBuffers) {
+  const { error } = await supabase
+    .from('matches')
+    .update({ rally_buffers: rallyBuffers })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function saveVideoUrl(id, videoUrl) {
   const { error } = await supabase
     .from('matches')

@@ -1,7 +1,10 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { deleteShot, saveVideoUrl } from '../utils/storage'
+import { deleteShot, saveVideoUrl, saveRallyBuffers } from '../utils/storage'
 
-export default function VideoTab({ matchId, videoUrl: savedUrl, shots, onShotDeleted, onVideoSaved }) {
+const DEFAULT_PRE = 0.5
+const DEFAULT_POST = 0.5
+
+export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuffers: savedBuffers, onShotDeleted, onVideoSaved, onBuffersSaved }) {
   const videoRef = useRef()
   const [videoSrc, setVideoSrc] = useState(savedUrl || null)
   const [uploading, setUploading] = useState(false)
@@ -10,10 +13,40 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, onShotDel
   const [mode, setMode] = useState('rally')
   const [selectedPoint, setSelectedPoint] = useState('')
   const [selectedShotKey, setSelectedShotKey] = useState('')
-  const [preBuf, setPreBuf] = useState(0.5)
-  const [postBuf, setPostBuf] = useState(0.5)
+  const [rallyBuffers, setRallyBuffers] = useState(savedBuffers ?? {})
+  const [unsaved, setUnsaved] = useState(false)
+  const [saving, setSaving] = useState(false)
   const endTimeRef = useRef(null)
   const localObjUrl = useRef(null)
+
+  // Helpers to get/set per-rally buffers, falling back to defaults
+  function getBuf(point) {
+    return {
+      pre: rallyBuffers[point]?.pre ?? DEFAULT_PRE,
+      post: rallyBuffers[point]?.post ?? DEFAULT_POST,
+    }
+  }
+
+  function setBuf(point, key, val) {
+    setRallyBuffers((prev) => ({
+      ...prev,
+      [point]: { ...getBuf(point), [key]: val },
+    }))
+    setUnsaved(true)
+  }
+
+  async function handleSaveBuffers() {
+    setSaving(true)
+    try {
+      await saveRallyBuffers(matchId, rallyBuffers)
+      onBuffersSaved?.(rallyBuffers)
+      setUnsaved(false)
+    } catch (err) {
+      alert('Failed to save: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const timedShots = shots.filter((s) => s.videoTime != null)
   const points = [...new Set(timedShots.map((s) => s.point))].sort((a, b) => a - b)
@@ -84,7 +117,8 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, onShotDel
     if (!val) return
     const rallyShots = timedShots.filter((s) => s.point === Number(val))
     if (!rallyShots.length) return
-    seekAndPlay(rallyShots[0].videoTime - preBuf, rallyShots[rallyShots.length - 1].videoTime + postBuf)
+    const { pre, post } = getBuf(val)
+    seekAndPlay(rallyShots[0].videoTime - pre, rallyShots[rallyShots.length - 1].videoTime + post)
   }
 
   function handleShotSelect(val) {
@@ -92,7 +126,10 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, onShotDel
     if (!val) return
     const [point, shot] = val.split('-').map(Number)
     const s = timedShots.find((s) => s.point === point && s.shot === shot)
-    if (s) seekAndPlay(s.videoTime - preBuf, s.videoTime + postBuf)
+    if (s) {
+      const { pre, post } = getBuf(String(s.point))
+      seekAndPlay(s.videoTime - pre, s.videoTime + post)
+    }
   }
 
   const selectedShots = (() => {
@@ -201,9 +238,37 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, onShotDel
               )}
 
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
-                <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">Clip buffers</p>
-                <BufferInput label="Pre-shot (s)" value={preBuf} onChange={setPreBuf} />
-                <BufferInput label="Post-shot (s)" value={postBuf} onChange={setPostBuf} />
+                <div className="flex items-center justify-between">
+                  <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">
+                    {selectedPoint ? `Rally ${points.indexOf(Number(selectedPoint)) + 1} clip buffers` : 'Clip buffers'}
+                  </p>
+                  {selectedPoint && (
+                    <span className="text-gray-600 text-xs">
+                      {rallyBuffers[selectedPoint] ? 'Custom' : 'Default'}
+                    </span>
+                  )}
+                </div>
+                <BufferInput
+                  label="Pre-shot (s)"
+                  value={selectedPoint ? getBuf(selectedPoint).pre : DEFAULT_PRE}
+                  onChange={(fn) => selectedPoint && setBuf(selectedPoint, 'pre', typeof fn === 'function' ? fn(getBuf(selectedPoint).pre) : fn)}
+                  disabled={!selectedPoint}
+                />
+                <BufferInput
+                  label="Post-shot (s)"
+                  value={selectedPoint ? getBuf(selectedPoint).post : DEFAULT_POST}
+                  onChange={(fn) => selectedPoint && setBuf(selectedPoint, 'post', typeof fn === 'function' ? fn(getBuf(selectedPoint).post) : fn)}
+                  disabled={!selectedPoint}
+                />
+                {unsaved && (
+                  <button
+                    onClick={handleSaveBuffers}
+                    disabled={saving}
+                    className="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'Saving…' : 'Save clip settings'}
+                  </button>
+                )}
               </div>
 
               {selectedShots.length > 0 && (

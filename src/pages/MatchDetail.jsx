@@ -127,11 +127,15 @@ export default function MatchDetail() {
             matchId={id}
             videoUrl={match.video_url ?? null}
             shots={match.shots}
+            rallyBuffers={match.rally_buffers ?? {}}
             onShotDeleted={(shotId) =>
               setMatch((m) => ({ ...m, shots: m.shots.filter((s) => s.id !== shotId) }))
             }
             onVideoSaved={(url) =>
               setMatch((m) => ({ ...m, video_url: url }))
+            }
+            onBuffersSaved={(buffers) =>
+              setMatch((m) => ({ ...m, rally_buffers: buffers }))
             }
           />
         )}
