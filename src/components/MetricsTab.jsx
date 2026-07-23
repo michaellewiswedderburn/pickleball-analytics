@@ -55,7 +55,7 @@ const COMPONENT_META = [
   { key: 'in_attack',       label: 'In Attack',     weight: '20%', color: '#f59e0b' },
 ]
 
-const ALL_STROKES = ['Forehand', 'Backhand', 'Serve', 'Volley', 'Drop', 'Dink', 'Overhead']
+const ALL_STROKES = ['Serve', 'Return', 'Forehand', 'Backhand', 'Volley', 'Drop', 'Dink', 'Overhead']
 
 const PLAYER_COLORS = ['#34d399', '#60a5fa', '#f59e0b', '#a78bfa']
 

@@ -219,6 +219,20 @@ export function computeMetrics(shots) {
       byStroke[stroke] = avg(scores)
     })
 
+    // Serve (shot 1) and Return (shot 2) as position-based categories
+    const serveShots = ps.filter((s) => s.shot === 1)
+    const returnShots = ps.filter((s) => s.shot === 2)
+    if (serveShots.length) {
+      byStroke['Serve'] = avg(serveShots.map((s) =>
+        shotQualityScore(s, winnerKeys.has(`${s.point}-${s.shot}`), errorKeys.has(`${s.point}-${s.shot}`))
+      ))
+    }
+    if (returnShots.length) {
+      byStroke['Return'] = avg(returnShots.map((s) =>
+        shotQualityScore(s, winnerKeys.has(`${s.point}-${s.shot}`), errorKeys.has(`${s.point}-${s.shot}`))
+      ))
+    }
+
     // Overall shot quality = weighted avg across all strokes by shot count
     const allScores = ps.map((s) =>
       shotQualityScore(s, winnerKeys.has(`${s.point}-${s.shot}`), errorKeys.has(`${s.point}-${s.shot}`))
