@@ -64,20 +64,15 @@ export function playerStats(shots) {
 
 // ── Third-shot analysis ───────────────────────────────────────────
 
-export function thirdShotStats(shots) {
-  const thirds = shots.filter((s) => s.shot === 3)
-  if (!thirds.length) return null
-
+function calcThirdShotSummary(thirds) {
   const drops = thirds.filter((s) => /drop/i.test(s.stroke))
   const drives = thirds.filter((s) => /drive/i.test(s.stroke))
-
   const kitchenLands = thirds.filter(
     (s) =>
       s.bounce.y != null &&
       s.bounce.y >= COURT.kitchenFar - 0.05 &&
       s.bounce.y <= COURT.kitchenFar + 2.134,
   )
-
   return {
     total: thirds.length,
     drops: drops.length,
@@ -86,7 +81,23 @@ export function thirdShotStats(shots) {
     dropRate: thirds.length ? drops.length / thirds.length : 0,
     kitchenLands: kitchenLands.length,
     kitchenRate: thirds.length ? kitchenLands.length / thirds.length : 0,
+  }
+}
+
+export function thirdShotStats(shots) {
+  const thirds = shots.filter((s) => s.shot === 3)
+  if (!thirds.length) return null
+
+  const players = [...new Set(thirds.map((s) => s.player).filter(Boolean))]
+  const byPlayer = players.map((player) => ({
+    player,
+    ...calcThirdShotSummary(thirds.filter((s) => s.player === player)),
+  }))
+
+  return {
+    ...calcThirdShotSummary(thirds),
     shots: thirds,
+    byPlayer,
   }
 }
 

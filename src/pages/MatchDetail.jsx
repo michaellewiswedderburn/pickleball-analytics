@@ -212,11 +212,7 @@ function MiniBar({ title, data, colors }) {
 
 // ── Tab: Third Shot ───────────────────────────────────────────────
 
-function ThirdShotTab({ stats }) {
-  if (!stats) {
-    return <p className="text-gray-400">No third-shot data found in this match.</p>
-  }
-
+function ThirdShotSummaryPanel({ s }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
@@ -225,23 +221,61 @@ function ThirdShotTab({ stats }) {
           data={{
             labels: ['Drops', 'Drives', 'Other'],
             datasets: [{
-              data: [stats.drops, stats.drives, stats.other],
+              data: [s.drops, s.drives, s.other],
               backgroundColor: ['#34d399', '#60a5fa', '#9ca3af'],
               borderWidth: 0,
             }],
           }}
-          options={{
-            plugins: { legend: { labels: { color: '#9ca3af' } } },
-          }}
+          options={{ plugins: { legend: { labels: { color: '#9ca3af' } } } }}
         />
       </div>
-
       <div className="grid gap-3 content-start">
-        <Stat label="Total 3rd Shots" value={stats.total} />
-        <Stat label="Drop Rate" value={`${(stats.dropRate * 100).toFixed(0)}%`} />
-        <Stat label="Kitchen Landing Rate" value={`${(stats.kitchenRate * 100).toFixed(0)}%`} />
-        <Stat label="Kitchen Lands" value={stats.kitchenLands} />
+        <Stat label="Total 3rd Shots" value={s.total} />
+        <Stat label="Drop Rate" value={`${(s.dropRate * 100).toFixed(0)}%`} />
+        <Stat label="Kitchen Landing Rate" value={`${(s.kitchenRate * 100).toFixed(0)}%`} />
+        <Stat label="Kitchen Lands" value={s.kitchenLands} />
       </div>
+    </div>
+  )
+}
+
+function ThirdShotTab({ stats }) {
+  const [view, setView] = useState('overall')
+
+  if (!stats) {
+    return <p className="text-gray-400">No third-shot data found in this match.</p>
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-2">
+        {['overall', 'by player'].map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              view === v
+                ? 'bg-emerald-600 text-white'
+                : 'bg-gray-800 text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            {v.charAt(0).toUpperCase() + v.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {view === 'overall' ? (
+        <ThirdShotSummaryPanel s={stats} />
+      ) : (
+        <div className="space-y-6">
+          {stats.byPlayer.map((p) => (
+            <div key={p.player}>
+              <h3 className="text-gray-300 font-semibold mb-3">{p.player}</h3>
+              <ThirdShotSummaryPanel s={p} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
