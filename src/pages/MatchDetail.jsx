@@ -11,13 +11,14 @@ import { getMatch } from '../utils/storage'
 import { playerStats, thirdShotStats, rallyStats, computeMetrics } from '../utils/analytics'
 import CourtPlot from '../components/CourtPlot'
 import MetricsTab, { MetricsUploader } from '../components/MetricsTab'
+import VideoTab from '../components/VideoTab'
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement, LineElement,
   PointElement, ArcElement, Title, Tooltip, Legend,
 )
 
-const TABS = ['Court', 'Players', 'Third Shot', 'Rally', 'Patterns', 'Metrics']
+const TABS = ['Court', 'Players', 'Third Shot', 'Rally', 'Patterns', 'Metrics', 'Video']
 
 const chartDefaults = {
   plugins: { legend: { labels: { color: '#9ca3af' } } },
@@ -121,6 +122,7 @@ export default function MatchDetail() {
             </details>
           </div>
         )}
+        {tab === 'Video' && <VideoTab shots={match.shots} />}
       </main>
     </div>
   )

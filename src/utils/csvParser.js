@@ -3,7 +3,7 @@ import Papa from 'papaparse'
 // SwingVision CSV columns:
 // Point, Game, Set, Shot, Type, Player, Stroke, Result, Direction, Spin,
 // Speed (MPH), Hit (x), Hit (y), Hit (z), Bounce (x), Bounce (y),
-// Bounce Zone, Bounce Side, Hit Zone
+// Bounce Zone, Bounce Side, Hit Zone, Video Time
 
 export function parseSwingVisionCSV(file) {
   return new Promise((resolve, reject) => {
@@ -55,5 +55,6 @@ function normalizeShots(rows) {
       bounceZone: r['Bounce Zone'] ?? '',
       bounceSide: r['Bounce Side'] ?? '',
       hitZone: r['Hit Zone'] ?? '',
+      videoTime: r['Video Time'] ?? null,
     }))
 }

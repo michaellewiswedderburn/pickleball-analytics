@@ -69,6 +69,7 @@ export async function saveMatch(match) {
     bounce_zone: s.bounceZone,
     bounce_side: s.bounceSide,
     hit_zone: s.hitZone,
+    video_time: s.videoTime ?? null,
   }))
 
   const { error: sErr } = await supabase.from('shots').insert(shotRows)
@@ -109,5 +110,6 @@ function normalizeShot(s) {
     bounceZone: s.bounce_zone ?? '',
     bounceSide: s.bounce_side ?? '',
     hitZone: s.hit_zone ?? '',
+    videoTime: s.video_time ?? null,
   }
 }
