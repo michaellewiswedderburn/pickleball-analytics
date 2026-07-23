@@ -145,7 +145,7 @@ function shotQualityScore(shot, isWinner, isError) {
     if (shot.stroke === 'Volley' || shot.stroke === 'Overhead') return 8.5
     return 9.0                                                   // groundstroke winner
   }
-  if (isError) return 2.5
+  if (isError) return (shot.shot === 1 || shot.shot === 2) ? 3.0 : 2.5
 
   const isDropOrDink = /drop|dink/i.test(shot.stroke)
   const isServe = shot.shot === 1
