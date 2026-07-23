@@ -83,6 +83,14 @@ export async function deleteMatch(id) {
   if (error) throw error
 }
 
+export async function saveVideoOffset(id, offset) {
+  const { error } = await supabase
+    .from('matches')
+    .update({ video_offset: offset })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function saveRallyBuffers(id, rallyBuffers) {
   const { error } = await supabase
     .from('matches')

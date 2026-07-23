@@ -1,10 +1,10 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { deleteShot, saveVideoUrl, saveRallyBuffers } from '../utils/storage'
+import { deleteShot, saveVideoUrl, saveRallyBuffers, saveVideoOffset } from '../utils/storage'
 
 const DEFAULT_PRE = 0.5
 const DEFAULT_POST = 0.5
 
-export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuffers: savedBuffers, onShotDeleted, onVideoSaved, onBuffersSaved }) {
+export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuffers: savedBuffers, videoOffset: savedOffset, onShotDeleted, onVideoSaved, onBuffersSaved, onOffsetSaved }) {
   const videoRef = useRef()
   const [videoSrc, setVideoSrc] = useState(savedUrl || null)
   const [uploading, setUploading] = useState(false)
@@ -16,6 +16,10 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
   const [rallyBuffers, setRallyBuffers] = useState(savedBuffers ?? {})
   const [unsaved, setUnsaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [offset, setOffset] = useState(savedOffset ?? 0)
+  const [syncMode, setSyncMode] = useState(false)
+  const [syncShot, setSyncShot] = useState('')
+  const [savingOffset, setSavingOffset] = useState(false)
   const endTimeRef = useRef(null)
   const localObjUrl = useRef(null)
 
@@ -33,6 +37,29 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
       [point]: { ...getBuf(point), [key]: val },
     }))
     setUnsaved(true)
+  }
+
+  function handleMarkSync() {
+    const video = videoRef.current
+    if (!video || !syncShot) return
+    const [point, shot] = syncShot.split('-').map(Number)
+    const s = timedShots.find((s) => s.point === point && s.shot === shot)
+    if (!s) return
+    const newOffset = video.currentTime - s.videoTime
+    setOffset(newOffset)
+  }
+
+  async function handleSaveOffset() {
+    setSavingOffset(true)
+    try {
+      await saveVideoOffset(matchId, offset)
+      onOffsetSaved?.(offset)
+      setSyncMode(false)
+    } catch (err) {
+      alert('Failed to save offset: ' + err.message)
+    } finally {
+      setSavingOffset(false)
+    }
   }
 
   async function handleSaveBuffers() {
@@ -91,8 +118,8 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
   function seekAndPlay(startTime, stopTime) {
     const video = videoRef.current
     if (!video) return
-    endTimeRef.current = stopTime
-    video.currentTime = Math.max(0, startTime)
+    endTimeRef.current = stopTime + offset
+    video.currentTime = Math.max(0, startTime + offset)
     video.play()
   }
 
@@ -195,6 +222,63 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
             </div>
 
             <div className="space-y-4">
+              {/* Sync panel */}
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">Video sync</p>
+                  <div className="flex items-center gap-2">
+                    {offset !== 0 && (
+                      <span className="text-xs text-emerald-400">{offset > 0 ? '+' : ''}{offset.toFixed(2)}s</span>
+                    )}
+                    <button
+                      onClick={() => setSyncMode((v) => !v)}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${syncMode ? 'bg-emerald-700 text-white' : 'bg-gray-700 text-gray-300 hover:text-white'}`}
+                    >
+                      {syncMode ? 'Cancel' : 'Sync timing'}
+                    </button>
+                  </div>
+                </div>
+
+                {syncMode && (
+                  <div className="space-y-3">
+                    <p className="text-gray-500 text-xs">Scrub the video to the exact moment a shot starts, then select that shot and click Mark.</p>
+                    <select
+                      value={syncShot}
+                      onChange={(e) => setSyncShot(e.target.value)}
+                      className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                    >
+                      <option value="">Select reference shot…</option>
+                      {timedShots.map((s) => (
+                        <option key={`${s.point}-${s.shot}`} value={`${s.point}-${s.shot}`}>
+                          Rally {points.indexOf(s.point) + 1} · Shot {s.shot} — {s.player} {s.stroke}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleMarkSync}
+                        disabled={!syncShot}
+                        className="flex-1 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm transition-colors disabled:opacity-40"
+                      >
+                        Mark current position
+                      </button>
+                      <button
+                        onClick={handleSaveOffset}
+                        disabled={savingOffset}
+                        className="flex-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        {savingOffset ? 'Saving…' : 'Save sync'}
+                      </button>
+                    </div>
+                    {offset !== 0 && (
+                      <p className="text-gray-500 text-xs text-center">
+                        Offset: {offset > 0 ? '+' : ''}{offset.toFixed(2)}s applied to all shots
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-2">
                 {['rally', 'shot'].map((m) => (
                   <button
