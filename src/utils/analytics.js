@@ -139,56 +139,69 @@ export function rallyStats(shots) {
 const ATTACK_STROKES = new Set(['Forehand', 'Backhand', 'Overhead', 'Volley'])
 
 // Shot quality score for a single shot (0–10).
-// Winners and errors anchor the scale; in-play shots are scored on speed + placement.
 function shotQualityScore(shot, isWinner, isError) {
-  if (isWinner) return 8.5
+  if (isWinner) {
+    if (shot.shot === 1 || shot.shot === 2) return 9.5          // ace or return ace
+    if (shot.stroke === 'Volley' || shot.stroke === 'Overhead') return 8.5
+    return 9.0                                                   // groundstroke winner
+  }
   if (isError) return 2.5
+
+  const isDropOrDink = /drop|dink/i.test(shot.stroke)
+  const isServe = shot.shot === 1
 
   let score = 5.0
 
-  // Speed contribution: ~10 mph → -1.5, ~55 mph → +2.5
-  if (shot.speedMph != null) {
+  // Speed: drops/dinks are naturally slow — don't penalise them.
+  // Other shots: small penalty for slow, moderate bonus for fast.
+  if (shot.speedMph != null && !isDropOrDink) {
     const norm = Math.min(1, Math.max(0, (shot.speedMph - 10) / 45))
-    score += norm * 4 - 1.5
+    score += norm * 3 - 0.5  // range: −0.5 (slow) to +2.5 (fast)
   }
 
-  // Placement contribution
+  // Placement: increased influence (×0.7 vs former ×0.5).
   if (shot.bounce.x != null && shot.bounce.y != null) {
-    const p = bouncePlacementScore(shot.bounce.x, shot.bounce.y, shot.stroke)
-    score += (p - 5) * 0.5
+    const p = isServe
+      ? servePlacementScore(shot.bounce.x, shot.bounce.y)
+      : bouncePlacementScore(shot.bounce.x, shot.bounce.y, shot.stroke)
+    score += (p - 5) * 0.7
   }
 
   return Math.min(10, Math.max(0, score))
 }
 
+// Serve placement: rewards depth (close to far baseline) and width (close to sideline).
+// Valid serve area on the far side: kitchen line (8.840) to far baseline (13.411).
+function servePlacementScore(x, y) {
+  if (y < COURT.kitchenFar || y > COURT.length) return 2.0  // fault
+  const depthRatio = (y - COURT.kitchenFar) / (COURT.length - COURT.kitchenFar)
+  const depthScore = depthRatio * 10        // deeper = higher
+  const widthScore = (Math.abs(x) / COURT.halfWidth) * 10   // wider = higher
+  return Math.min(10, depthScore * 0.6 + widthScore * 0.4)
+}
+
 // Score placement 0–10 based on where the ball bounced and what stroke was used.
 function bouncePlacementScore(x, y, stroke) {
-  const isDropOrDink = stroke === 'Drop' || stroke === 'Dink'
+  const isDropOrDink = /drop|dink/i.test(stroke)
 
   if (isDropOrDink) {
-    // Quality = how close to the kitchen line the ball lands
-    const kitchenMid = (COURT.kitchenNear + COURT.kitchenFar) / 2
     const kitchenHalf = (COURT.kitchenFar - COURT.kitchenNear) / 2
     if (y >= COURT.kitchenNear && y <= COURT.kitchenFar) {
-      // In kitchen — higher score closer to the kitchen line itself
       const distFromLine = Math.min(
         Math.abs(y - COURT.kitchenNear),
         Math.abs(y - COURT.kitchenFar),
       )
       return 6 + (1 - distFromLine / kitchenHalf) * 4
     }
-    // Missed kitchen — penalise by distance
     return Math.max(1, 5 - Math.min(Math.abs(y - COURT.kitchenNear), Math.abs(y - COURT.kitchenFar)) * 1.5)
   }
 
-  // Groundstrokes / volleys: reward depth (close to either baseline) and width (close to sideline)
+  // Groundstrokes / volleys: reward depth and width
   const depthRatio = y < COURT.net
-    ? 1 - y / COURT.net               // near-side depth: 1 = at net, 0 = at baseline
-    : (y - COURT.net) / (COURT.length - COURT.net) // far-side depth
-  const depthScore = (1 - depthRatio) * 10  // deeper = closer to baseline = higher score
-
-  const widthScore = (Math.abs(x) / COURT.halfWidth) * 8  // closer to sideline = higher
-
+    ? 1 - y / COURT.net
+    : (y - COURT.net) / (COURT.length - COURT.net)
+  const depthScore = (1 - depthRatio) * 10
+  const widthScore = (Math.abs(x) / COURT.halfWidth) * 8
   return Math.min(10, depthScore * 0.6 + widthScore * 0.4)
 }
 
