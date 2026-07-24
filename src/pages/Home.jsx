@@ -4,7 +4,7 @@ import { getMatches } from '../utils/storage'
 import CSVUploader from '../components/CSVUploader'
 import MatchCard from '../components/MatchCard'
 
-export default function Home({ session }) {
+export default function Home() {
   const [matches, setMatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [showUpload, setShowUpload] = useState(false)
@@ -37,18 +37,11 @@ export default function Home({ session }) {
           <h1 className="text-xl font-bold text-gray-100">Pickleball Analytics</h1>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-gray-500 text-xs hidden sm:block">{session.user.email}</span>
           <button
             onClick={() => setShowUpload((v) => !v)}
             className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {showUpload ? 'Cancel' : '+ Import Match'}
-          </button>
-          <button
-            onClick={handleSignOut}
-            className="text-gray-400 hover:text-gray-200 text-sm transition-colors"
-          >
-            Sign out
           </button>
         </div>
       </header>
