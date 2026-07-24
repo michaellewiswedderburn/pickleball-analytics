@@ -31,13 +31,11 @@ export async function getMatch(id) {
 }
 
 export async function saveMatch(match) {
-  const { data: { user } } = await supabase.auth.getUser()
-
   const { data: row, error: mErr } = await supabase
     .from('matches')
     .insert({
       id: match.id,
-      user_id: user.id,
+      user_id: null,
       label: match.label,
       uploaded_at: match.uploadedAt,
       shot_count: match.shotCount,
