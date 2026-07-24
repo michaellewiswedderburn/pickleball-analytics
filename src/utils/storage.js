@@ -121,6 +121,18 @@ export async function deleteShot(shotId) {
   if (error) throw error
 }
 
+export async function updateShotNumbers(shotUpdates) {
+  for (const { id, shot } of shotUpdates) {
+    const { error } = await supabase.from('shots').update({ shot }).eq('id', id)
+    if (error) throw error
+  }
+}
+
+export async function updateShotRally(id, point, shot) {
+  const { error } = await supabase.from('shots').update({ point, shot }).eq('id', id)
+  if (error) throw error
+}
+
 function normalizeShot(s) {
   return {
     id: s.id,

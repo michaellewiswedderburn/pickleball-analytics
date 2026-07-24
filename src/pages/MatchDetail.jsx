@@ -141,6 +141,25 @@ export default function MatchDetail() {
             onOffsetSaved={(off) =>
               setMatch((m) => ({ ...m, video_offset: off }))
             }
+            onShotsReordered={(updates) =>
+              setMatch((m) => {
+                const map = Object.fromEntries(updates.map(({ id, shot }) => [id, shot]))
+                return { ...m, shots: m.shots.map((s) => map[s.id] != null ? { ...s, shot: map[s.id] } : s) }
+              })
+            }
+            onShotMoved={(moved, renumbered) =>
+              setMatch((m) => {
+                const renumMap = Object.fromEntries(renumbered.map(({ id, shot }) => [id, shot]))
+                return {
+                  ...m,
+                  shots: m.shots.map((s) => {
+                    if (s.id === moved.id) return { ...s, point: moved.point, shot: moved.shot }
+                    if (renumMap[s.id] != null) return { ...s, shot: renumMap[s.id] }
+                    return s
+                  }),
+                }
+              })
+            }
           />
         )}
       </main>
