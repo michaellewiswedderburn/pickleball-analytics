@@ -147,6 +147,12 @@ export default function MatchDetail() {
                 return { ...m, shots: m.shots.map((s) => map[s.id] != null ? { ...s, shot: map[s.id] } : s) }
               })
             }
+            onShotUpdated={(fields) =>
+              setMatch((m) => ({
+                ...m,
+                shots: m.shots.map((s) => s.id === fields.id ? { ...s, ...fields } : s),
+              }))
+            }
             onShotMoved={(moved, renumbered) =>
               setMatch((m) => {
                 const renumMap = Object.fromEntries(renumbered.map(({ id, shot }) => [id, shot]))

@@ -1,10 +1,10 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { deleteShot, saveVideoUrl, saveRallyBuffers, saveVideoOffset, updateShotNumbers, updateShotRally } from '../utils/storage'
+import { deleteShot, saveVideoUrl, saveRallyBuffers, saveVideoOffset, updateShotNumbers, updateShotRally, updateShot } from '../utils/storage'
 
 const DEFAULT_PRE = 0.5
 const DEFAULT_POST = 0.5
 
-export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuffers: savedBuffers, videoOffset: savedOffset, onShotDeleted, onVideoSaved, onBuffersSaved, onOffsetSaved, onShotsReordered, onShotMoved }) {
+export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuffers: savedBuffers, videoOffset: savedOffset, onShotDeleted, onVideoSaved, onBuffersSaved, onOffsetSaved, onShotsReordered, onShotMoved, onShotUpdated }) {
   const videoRef = useRef()
   const [videoSrc, setVideoSrc] = useState(savedUrl || null)
   const [uploading, setUploading] = useState(false)
@@ -88,6 +88,8 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
   // Group by CSV point value — each unique point is one rally
   const points = [...new Set(timedShots.map((s) => s.point))].sort((a, b) => a - b)
   const rallies = points.map((p) => timedShots.filter((s) => s.point === p))
+
+  const players = [...new Set(shots.map((s) => s.player).filter(Boolean))]
 
   async function handleVideoFile(file) {
     if (!file) return
@@ -514,6 +516,7 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
                         <ShotRow
                           key={s.id ?? `${s.point}-${s.shot}`}
                           shot={s}
+                          players={players}
                           rallies={rallies}
                           currentRallyIndex={points.indexOf(Number(selectedPoint))}
                           onSeek={() => {
@@ -523,6 +526,7 @@ export default function VideoTab({ matchId, videoUrl: savedUrl, shots, rallyBuff
                           }}
                           onDeleted={onShotDeleted}
                           onMove={(destIndex) => handleMoveShot(s, destIndex)}
+                          onUpdated={onShotUpdated}
                         />
                       )
                     })
@@ -556,11 +560,36 @@ function VideoDropzone({ onFile }) {
   )
 }
 
-function ShotRow({ shot: s, onSeek, onDeleted, onMove, rallies, currentRallyIndex }) {
+const STROKES = ['Serve', 'Return', 'Forehand', 'Backhand', 'Volley', 'Drop', 'Dink', 'Overhead']
+const RESULTS = ['In', 'Out', 'Net']
+
+function ShotRow({ shot: s, onSeek, onDeleted, onMove, onUpdated, rallies, currentRallyIndex, players }) {
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [moving, setMoving] = useState(false)
   const [moveTarget, setMoveTarget] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState({})
+  const [saving, setSaving] = useState(false)
+
+  function startEdit() {
+    setDraft({ player: s.player, stroke: s.stroke, result: s.result, speedMph: s.speedMph ?? '' })
+    setEditing(true)
+    setConfirming(false)
+  }
+
+  async function handleSaveEdit() {
+    setSaving(true)
+    try {
+      await updateShot(s.id, draft)
+      onUpdated?.({ id: s.id, ...draft, speedMph: draft.speedMph === '' ? null : Number(draft.speedMph) })
+      setEditing(false)
+    } catch (err) {
+      alert('Failed to save: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function handleDelete() {
     setDeleting(true)
@@ -587,62 +616,106 @@ function ShotRow({ shot: s, onSeek, onDeleted, onMove, rallies, currentRallyInde
     }
   }
 
+  const selectCls = 'w-full bg-gray-800 text-gray-200 border border-gray-700 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-emerald-500'
+
   return (
     <div className="text-xs py-2 border-b border-gray-800 last:border-0">
-      <div
-        onClick={onSeek}
-        className="grid grid-cols-2 gap-x-3 gap-y-0.5 cursor-pointer hover:bg-gray-800 rounded px-2 -mx-2 pb-1 transition-colors"
-      >
-        <span className="text-gray-500">Shot {s.shot}</span>
-        <span className="text-gray-200">{s.player}</span>
-        <span className="text-gray-500">Stroke</span>
-        <span className="text-gray-200">{s.stroke || '—'}</span>
-        <span className="text-gray-500">Result</span>
-        <span className={s.result === 'In' ? 'text-emerald-400' : 'text-red-400'}>{s.result || '—'}</span>
-        {s.speedMph != null && (
-          <>
-            <span className="text-gray-500">Speed</span>
-            <span className="text-gray-200">{s.speedMph} mph</span>
-          </>
-        )}
-      </div>
-      <div className="mt-1.5 px-2 -mx-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-        {!confirming ? (
-          <button onClick={() => setConfirming(true)} className="text-red-500 hover:text-red-400 text-xs transition-colors">
-            Delete
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400">Remove?</span>
-            <button onClick={handleDelete} disabled={deleting} className="text-red-400 hover:text-red-300 font-medium disabled:opacity-50">
-              {deleting ? 'Deleting…' : 'Yes'}
-            </button>
-            <button onClick={() => setConfirming(false)} className="text-gray-500 hover:text-gray-300">No</button>
+      {editing ? (
+        <div className="space-y-2 px-1">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2 items-center">
+            <span className="text-gray-500">Shot {s.shot}</span>
+            <span className="text-gray-400 text-xs">editing</span>
+
+            <label className="text-gray-500">Player</label>
+            <select value={draft.player} onChange={(e) => setDraft((d) => ({ ...d, player: e.target.value }))} className={selectCls}>
+              {players.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+
+            <label className="text-gray-500">Stroke</label>
+            <select value={draft.stroke} onChange={(e) => setDraft((d) => ({ ...d, stroke: e.target.value }))} className={selectCls}>
+              {STROKES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+
+            <label className="text-gray-500">Result</label>
+            <select value={draft.result} onChange={(e) => setDraft((d) => ({ ...d, result: e.target.value }))} className={selectCls}>
+              {RESULTS.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+
+            <label className="text-gray-500">Speed (mph)</label>
+            <input
+              type="number"
+              value={draft.speedMph}
+              onChange={(e) => setDraft((d) => ({ ...d, speedMph: e.target.value }))}
+              placeholder="—"
+              className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-1.5 py-1 text-xs w-full focus:outline-none focus:border-emerald-500"
+            />
           </div>
-        )}
-        <div className="flex items-center gap-1">
-          <select
-            value={moveTarget}
-            onChange={(e) => setMoveTarget(e.target.value)}
-            className="bg-gray-800 text-gray-400 border border-gray-700 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-emerald-500"
-          >
-            <option value="">Move to…</option>
-            {rallies.map((_, i) => i !== currentRallyIndex && (
-              <option key={i} value={i}>Rally {i + 1}</option>
-            ))}
-            <option value="new">+ New rally</option>
-          </select>
-          {moveTarget !== '' && (
-            <button
-              onClick={handleMove}
-              disabled={moving}
-              className="text-emerald-400 hover:text-emerald-300 font-medium disabled:opacity-50 text-xs"
-            >
-              {moving ? 'Moving…' : 'Go'}
+          <div className="flex gap-2 mt-1">
+            <button onClick={handleSaveEdit} disabled={saving} className="flex-1 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-medium disabled:opacity-50">
+              {saving ? 'Saving…' : 'Save'}
             </button>
-          )}
+            <button onClick={() => setEditing(false)} className="flex-1 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300">
+              Cancel
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div
+            onClick={onSeek}
+            className="grid grid-cols-2 gap-x-3 gap-y-0.5 cursor-pointer hover:bg-gray-800 rounded px-2 -mx-2 pb-1 transition-colors"
+          >
+            <span className="text-gray-500">Shot {s.shot}</span>
+            <span className="text-gray-200">{s.player}</span>
+            <span className="text-gray-500">Stroke</span>
+            <span className="text-gray-200">{s.stroke || '—'}</span>
+            <span className="text-gray-500">Result</span>
+            <span className={s.result === 'In' ? 'text-emerald-400' : 'text-red-400'}>{s.result || '—'}</span>
+            {s.speedMph != null && (
+              <>
+                <span className="text-gray-500">Speed</span>
+                <span className="text-gray-200">{s.speedMph} mph</span>
+              </>
+            )}
+          </div>
+          <div className="mt-1.5 px-2 -mx-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <button onClick={startEdit} className="text-blue-400 hover:text-blue-300 text-xs transition-colors">
+              Edit
+            </button>
+            {!confirming ? (
+              <button onClick={() => setConfirming(true)} className="text-red-500 hover:text-red-400 text-xs transition-colors">
+                Delete
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400">Remove?</span>
+                <button onClick={handleDelete} disabled={deleting} className="text-red-400 hover:text-red-300 font-medium disabled:opacity-50">
+                  {deleting ? 'Deleting…' : 'Yes'}
+                </button>
+                <button onClick={() => setConfirming(false)} className="text-gray-500 hover:text-gray-300">No</button>
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <select
+                value={moveTarget}
+                onChange={(e) => setMoveTarget(e.target.value)}
+                className="bg-gray-800 text-gray-400 border border-gray-700 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-emerald-500"
+              >
+                <option value="">Move to…</option>
+                {rallies.map((_, i) => i !== currentRallyIndex && (
+                  <option key={i} value={i}>Rally {i + 1}</option>
+                ))}
+                <option value="new">+ New rally</option>
+              </select>
+              {moveTarget !== '' && (
+                <button onClick={handleMove} disabled={moving} className="text-emerald-400 hover:text-emerald-300 font-medium disabled:opacity-50 text-xs">
+                  {moving ? 'Moving…' : 'Go'}
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

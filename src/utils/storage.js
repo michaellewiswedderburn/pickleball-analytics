@@ -133,6 +133,16 @@ export async function updateShotRally(id, point, shot) {
   if (error) throw error
 }
 
+export async function updateShot(id, fields) {
+  const col = {}
+  if (fields.player   !== undefined) col.player    = fields.player
+  if (fields.stroke   !== undefined) col.stroke    = fields.stroke
+  if (fields.result   !== undefined) col.result    = fields.result
+  if (fields.speedMph !== undefined) col.speed_mph = fields.speedMph === '' ? null : Number(fields.speedMph)
+  const { error } = await supabase.from('shots').update(col).eq('id', id)
+  if (error) throw error
+}
+
 function normalizeShot(s) {
   return {
     id: s.id,
